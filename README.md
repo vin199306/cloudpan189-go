@@ -1,3 +1,6 @@
+# 修复了login 错误，请阅读 [/README-v1.4.md](https://github.com/MaurUppi/cloudpan189-go/blob/master/README-v1.4.md)
+
+
 # 关于
 天翼云盘CLI，基于GO语言实现。仿 Linux shell 文件处理命令的天翼云盘命令行客户端。
 
