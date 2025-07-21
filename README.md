@@ -1,4 +1,4 @@
-# 修复了login 错误，请阅读 [/README-v1.4.md](https://github.com/MaurUppi/cloudpan189-go/blob/master/README-v1.4.md)
+# 修复了login 错误，请阅读 [README-v1.4.md](https://github.com/MaurUppi/cloudpan189-go/blob/master/README-v1.4.md)
 
 
 # 关于
