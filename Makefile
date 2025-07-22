@@ -95,7 +95,7 @@ test-all:
 # Build the project
 build:
 	@echo "Building cloudpan189-go" >&2
-	@if ! go build -o bin/cloudpan189-go .; then \
+	@if ! go build -ldflags="-checklinkname=0" -o bin/cloudpan189-go .; then \
 		exit 1; \
 	fi
 

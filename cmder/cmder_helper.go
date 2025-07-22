@@ -2,6 +2,8 @@ package cmder
 
 import (
 	"fmt"
+	"strings"
+	"time"
 	"github.com/tickstep/cloudpan189-api/cloudpan"
 	"github.com/tickstep/cloudpan189-go/cmder/cmdliner"
 	"github.com/tickstep/cloudpan189-go/internal/config"
@@ -42,15 +44,19 @@ func App() *cli.App {
 	return appInstance
 }
 
-func DoLoginHelper(username, password string) (usernameStr, passwordStr string, webToken cloudpan.WebLoginToken, appToken cloudpan.AppLoginToken, error error) {
+func DoLoginHelper(username, password string) (usernameStr, passwordStr string, webToken cloudpan.WebLoginToken, appToken cloudpan.AppLoginToken, err error) {
 	line := cmdliner.NewLiner()
 	defer func() {
 		_ = line.Close()
+		// 增加 panic recovery 防止崩溃
+		if r := recover(); r != nil {
+			err = fmt.Errorf("登录过程发生严重错误: %v", r)
+		}
 	}()
 
 	if username == "" {
-		username, error = line.State.Prompt("请输入用户名(手机号/邮箱/别名), 回车键提交 > ")
-		if error != nil {
+		username, err = line.State.Prompt("请输入用户名(手机号/邮箱/别名), 回车键提交 > ")
+		if err != nil {
 			return
 		}
 	}
@@ -58,16 +64,52 @@ func DoLoginHelper(username, password string) (usernameStr, passwordStr string, 
 	if password == "" {
 		// liner 的 PasswordPrompt 不安全, 拆行之后密码就会显示出来了
 		fmt.Printf("请输入密码(输入的密码无回显, 确认输入完成, 回车提交即可) > ")
-		password, error = line.State.PasswordPrompt("")
-		if error != nil {
+		password, err = line.State.PasswordPrompt("")
+		if err != nil {
 			return
 		}
 	}
 
-	// app login
-	atoken, apperr := cloudpan.AppLogin(username, password)
+	// 参数验证
+	if strings.TrimSpace(username) == "" {
+		return "", "", webToken, appToken, fmt.Errorf("用户名不能为空")
+	}
+	if strings.TrimSpace(password) == "" {
+		return "", "", webToken, appToken, fmt.Errorf("密码不能为空")
+	}
+
+	// app login with retry mechanism
+	var atoken *cloudpan.AppLoginToken
+	var apperr error
+	maxRetries := 3
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		fmt.Printf("正在尝试登录... (第 %d/%d 次)\n", attempt, maxRetries)
+
+		// 使用 defer + recover 保护每次登录尝试
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					apperr = fmt.Errorf("登录时发生 panic: %v", r)
+				}
+			}()
+			atoken, apperr = cloudpan.AppLogin(username, password)
+		}()
+
+		if apperr == nil {
+			fmt.Println("APP 登录成功")
+			break
+		}
+
+		fmt.Printf("第 %d 次登录失败: %v\n", attempt, apperr)
+		if attempt < maxRetries {
+			fmt.Printf("等待 %d 秒后重试...\n", attempt)
+			time.Sleep(time.Duration(attempt) * time.Second)
+		}
+	}
+
 	if apperr != nil {
-		return "", "", webToken, appToken, fmt.Errorf("登录失败")
+		return "", "", webToken, appToken, fmt.Errorf("登录失败 (已重试 %d 次): %v", maxRetries, apperr)
 	}
 
 	// web cookie
