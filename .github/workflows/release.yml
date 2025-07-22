@@ -9,6 +9,7 @@ jobs:
   release:
     name: Build and Release
     runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
     
     steps:
     - name: Checkout code
@@ -21,7 +22,10 @@ jobs:
         
     - name: Get version
       id: get_version
-      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/}
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
       
     - name: Build binaries
       run: |
@@ -71,13 +75,10 @@ jobs:
         done
         
     - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.get_version.outputs.VERSION }}
-        release_name: CloudPan189-Go ${{ steps.get_version.outputs.VERSION }}
+        name: CloudPan189-Go ${{ steps.get_version.outputs.VERSION }}
         body: |
           ## CloudPan189-Go ${{ steps.get_version.outputs.VERSION }}
           
@@ -101,17 +102,7 @@ jobs:
           3. 首次使用请运行 `cloudpan189-go login` 进行登录
           
           详细技术说明请查看：[README-v1.4.md](https://github.com/MaurUppi/cloudpan189-go/blob/master/README-v1.4.md)
+        files: builds/*
         draft: false
         prerelease: false
-        
-    - name: Upload Release Assets
-      run: |
-        # 上传所有构建的文件
-        for file in builds/*; do
-          if [ -f "$file" ]; then
-            echo "Uploading $file"
-            gh release upload ${{ steps.get_version.outputs.VERSION }} "$file"
-          fi
-        done
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        make_latest: true
