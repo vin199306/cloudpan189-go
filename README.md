@@ -86,9 +86,9 @@
 
 参考例子：
 ```shell
-wget https://github.com/tickstep/cloudpan189-go/releases/download/v0.1.3/cloudpan189-go-v0.1.3-linux-amd64.zip
-unzip cloudpan189-go-v0.1.3-linux-amd64.zip
-cd cloudpan189-go-v0.1.3-linux-amd64
+wget https://github.com/tickstep/cloudpan189-go/releases/download/v0.1.5/cloudpan189-go-v0.1.5-linux-amd64.zip
+unzip cloudpan189-go-v0.1.5-linux-amd64.zip
+cd cloudpan189-go-v0.1.5-linux-amd64
 ./cloudpan189-go
 ```
 
