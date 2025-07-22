@@ -19,13 +19,16 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Setup Go Problem Matcher
+      run: echo "::add-matcher::.github/matchers/go.json"
+      
     - name: Set up Go ${{ matrix.go-version }}
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go-version }}
         
     - name: Cache Go modules
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cache/go-build
@@ -41,7 +44,7 @@ jobs:
       run: go mod verify
       
     - name: Run tests
-      run: go test -race -v ./...
+      run: go test -ldflags="-checklinkname=0" -race -v ./...
       
     - name: Run go vet
       run: go vet ./...
@@ -70,12 +73,12 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.22'
         
     - name: golangci-lint
-      uses: golangci/golangci-lint-action@v3
+      uses: golangci/golangci-lint-action@v6
       with:
         version: latest
         args: --timeout=5m
@@ -89,16 +92,16 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.22'
         
     - name: Run Gosec Security Scanner
-      uses: securecodewarrior/github-action-gosec@master
+      uses: securecodewarrior/github-action-gosec@v2
       with:
         args: '-no-fail -fmt sarif -out results.sarif ./...'
         
     - name: Upload SARIF file
-      uses: github/codeql-action/upload-sarif@v2
+      uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: results.sarif

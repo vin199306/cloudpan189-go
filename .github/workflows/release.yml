@@ -16,7 +16,7 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.22'
         
@@ -60,7 +60,10 @@ jobs:
           
           # 构建二进制文件
           echo "Building for $GOOS/$GOARCH..."
-          CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -a -ldflags '-extldflags "-static" -checklinkname=0' -o builds/${OUTPUT_NAME} .
+          if ! CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -a -ldflags '-extldflags "-static" -checklinkname=0' -o builds/${OUTPUT_NAME} .; then
+            echo "Failed to build for $GOOS/$GOARCH"
+            exit 1
+          fi
           
           # 创建压缩包
           ARCHIVE_NAME="cloudpan189-go-${{ steps.get_version.outputs.VERSION }}-${GOOS}-${GOARCH}"
@@ -82,15 +85,15 @@ jobs:
         body: |
           ## CloudPan189-Go ${{ steps.get_version.outputs.VERSION }}
           
-          ### 🆕 v1.4.1 版本更新 - 兼容性和稳定性修复
+          ### 🆕 v0.1.5 版本更新 - 兼容性和稳定性修复
           
-          #### 最新修复 (v1.4.1)
+          #### 最新修复 (v0.1.5)
           - 🔧 **修复编译兼容性问题**：解决 Go 1.23+ 环境下的 "invalid reference to runtime.rawbyteslice" 错误
           - 🛡️ **增强登录稳定性**：添加 panic recovery 和重试机制，防止登录过程崩溃
           - ⚡ **优化错误处理**：改进登录失败时的错误提示和用户引导
           - 🏗️ **CI/CD 优化**：更新 GitHub Actions 使用 Go 1.22，确保自动化构建稳定性
           
-          #### v1.4 核心修复
+          #### v0.1.4 核心修复
           - 🔧 **修复登录认证失败问题**：解决 "index out of range [1] with length 0" 崩溃错误
           - ✅ **解决 "未登录账号" 错误**：修复用户在 APP 登录成功后仍显示未登录的问题  
           - ⚡ **实现合成令牌回退系统**：当网页 Cookie 获取失败时，自动使用 APP 令牌维持完整功能
