@@ -44,7 +44,10 @@ jobs:
       run: go mod verify
       
     - name: Run tests
-      run: go test -ldflags="-checklinkname=0" -race -v ./...
+      run: |
+        echo "Running tests with race detector..."
+        go test -ldflags="-checklinkname=0" -race -v -timeout=10m ./...
+      timeout-minutes: 15
       
     - name: Run go vet
       run: go vet ./...
