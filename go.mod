@@ -1,6 +1,6 @@
 module github.com/tickstep/cloudpan189-go
 
-go 1.22
+go 1.23
 
 require (
 	github.com/GeertJohan/go.incremental v1.0.0
