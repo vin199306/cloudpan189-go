@@ -2,14 +2,15 @@ package cmder
 
 import (
 	"fmt"
-	"strings"
-	"time"
 	"github.com/tickstep/cloudpan189-api/cloudpan"
+	"github.com/tickstep/cloudpan189-api/cloudpan/apierror"
 	"github.com/tickstep/cloudpan189-go/cmder/cmdliner"
 	"github.com/tickstep/cloudpan189-go/internal/config"
 	"github.com/tickstep/library-go/logger"
 	"github.com/urfave/cli"
+	"strings"
 	"sync"
+	"time"
 )
 
 var (
@@ -80,7 +81,7 @@ func DoLoginHelper(username, password string) (usernameStr, passwordStr string, 
 
 	// app login with retry mechanism
 	var atoken *cloudpan.AppLoginToken
-	var apperr error
+	var apperr *apierror.ApiError
 	maxRetries := 3
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
@@ -90,18 +91,36 @@ func DoLoginHelper(username, password string) (usernameStr, passwordStr string, 
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					apperr = fmt.Errorf("登录时发生 panic: %v", r)
+					// Create a synthetic ApiError for panic recovery
+					apperr = apierror.NewFailedApiError(fmt.Sprintf("登录时发生 panic: %v", r))
 				}
 			}()
 			atoken, apperr = cloudpan.AppLogin(username, password)
 		}()
 
-		if apperr == nil {
+		// 详细的错误检查和调试信息
+		if apperr == nil && atoken != nil && atoken.AccessToken != "" && atoken.SessionKey != "" {
 			fmt.Println("APP 登录成功")
 			break
 		}
 
-		fmt.Printf("第 %d 次登录失败: %v\n", attempt, apperr)
+		// 更详细的错误信息
+		if apperr != nil {
+			fmt.Printf("第 %d 次登录失败 (错误代码: %d, 错误信息: %s)\n", attempt, apperr.Code, apperr.Error())
+		} else if atoken == nil {
+			apperr = apierror.NewFailedApiError("登录返回的令牌为空")
+			fmt.Printf("第 %d 次登录失败 (令牌为空)\n", attempt)
+		} else if atoken.AccessToken == "" {
+			apperr = apierror.NewFailedApiError("访问令牌为空")
+			fmt.Printf("第 %d 次登录失败 (访问令牌为空)\n", attempt)
+		} else if atoken.SessionKey == "" {
+			apperr = apierror.NewFailedApiError("会话密钥为空")
+			fmt.Printf("第 %d 次登录失败 (会话密钥为空)\n", attempt)
+		} else {
+			apperr = apierror.NewFailedApiError("未知登录错误")
+			fmt.Printf("第 %d 次登录失败 (未知错误)\n", attempt)
+		}
+
 		if attempt < maxRetries {
 			fmt.Printf("等待 %d 秒后重试...\n", attempt)
 			time.Sleep(time.Duration(attempt) * time.Second)
@@ -109,7 +128,7 @@ func DoLoginHelper(username, password string) (usernameStr, passwordStr string, 
 	}
 
 	if apperr != nil {
-		return "", "", webToken, appToken, fmt.Errorf("登录失败 (已重试 %d 次): %v", maxRetries, apperr)
+		return "", "", webToken, appToken, fmt.Errorf("登录失败 (已重试 %d 次, 错误代码: %d): %s", maxRetries, apperr.Code, apperr.Error())
 	}
 
 	// web cookie
