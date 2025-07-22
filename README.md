@@ -1,5 +1,19 @@
-# 修复了login 错误，请阅读 [README-v1.4.md](https://github.com/MaurUppi/cloudpan189-go/blob/master/README-v1.4.md)
+# 🆕 v1.4 版本更新 - 登录认证修复
 
+## 核心修复
+- 🔧 **修复登录认证失败问题**：解决 "index out of range [1] with length 0" 崩溃错误
+- ✅ **解决 "未登录账号" 错误**：修复用户在 APP 登录成功后仍显示未登录的问题  
+- ⚡ **实现合成令牌回退系统**：当网页 Cookie 获取失败时，自动使用 APP 令牌维持完整功能
+- 📱 **完全向后兼容**：现有用户无需任何操作，新用户自动享受修复后的稳定登录体验
+
+## 技术改进
+- 增强了 `ActiveUser()` 函数对合成令牌的识别和处理
+- 优化了登录流程的错误处理和用户创建逻辑
+- 改进了 APP 令牌和网页 Cookie 的协调机制
+
+详细的技术说明请查看：[README-v1.4.md](README-v1.4.md)
+
+---
 
 # 关于
 天翼云盘CLI，基于GO语言实现。仿 Linux shell 文件处理命令的天翼云盘命令行客户端。
