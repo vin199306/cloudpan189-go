@@ -1,0 +1,117 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.19'
+        
+    - name: Get version
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+    - name: Build binaries
+      run: |
+        # 创建构建目录
+        mkdir -p builds
+        
+        # 定义构建目标
+        TARGETS=(
+          "linux/amd64"
+          "linux/arm64" 
+          "linux/386"
+          "linux/arm"
+          "linux/mips64"
+          "linux/mips64le"
+          "windows/amd64"
+          "windows/386"
+          "darwin/amd64"
+          "darwin/arm64"
+          "android/arm64"
+        )
+        
+        # 构建每个目标
+        for target in "${TARGETS[@]}"; do
+          GOOS=${target%/*}
+          GOARCH=${target#*/}
+          
+          # 设置输出文件名
+          OUTPUT_NAME="cloudpan189-go"
+          if [ "$GOOS" = "windows" ]; then
+            OUTPUT_NAME+=".exe"
+          fi
+          
+          # 构建二进制文件
+          echo "Building for $GOOS/$GOARCH..."
+          CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -a -ldflags '-extldflags "-static"' -o builds/${OUTPUT_NAME} .
+          
+          # 创建压缩包
+          ARCHIVE_NAME="cloudpan189-go-${{ steps.get_version.outputs.VERSION }}-${GOOS}-${GOARCH}"
+          if [ "$GOOS" = "windows" ]; then
+            cd builds && zip -r ${ARCHIVE_NAME}.zip ${OUTPUT_NAME} && cd ..
+          else
+            cd builds && tar -czf ${ARCHIVE_NAME}.tar.gz ${OUTPUT_NAME} && cd ..
+          fi
+          
+          # 清理二进制文件
+          rm builds/${OUTPUT_NAME}
+        done
+        
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get_version.outputs.VERSION }}
+        release_name: CloudPan189-Go ${{ steps.get_version.outputs.VERSION }}
+        body: |
+          ## CloudPan189-Go ${{ steps.get_version.outputs.VERSION }}
+          
+          ### 🆕 v1.4 版本更新 - 登录认证修复
+          
+          #### 核心修复
+          - 🔧 **修复登录认证失败问题**：解决 "index out of range [1] with length 0" 崩溃错误
+          - ✅ **解决 "未登录账号" 错误**：修复用户在 APP 登录成功后仍显示未登录的问题  
+          - ⚡ **实现合成令牌回退系统**：当网页 Cookie 获取失败时，自动使用 APP 令牌维持完整功能
+          - 📱 **完全向后兼容**：现有用户无需任何操作，新用户自动享受修复后的稳定登录体验
+          
+          #### 支持平台
+          - **Linux**: amd64, arm64, 386, arm, mips64, mips64le
+          - **Windows**: amd64, 386  
+          - **macOS**: amd64 (Intel), arm64 (Apple Silicon)
+          - **Android**: arm64
+          
+          #### 安装说明
+          1. 根据你的系统架构下载对应的压缩包
+          2. 解压后运行 `cloudpan189-go` 即可使用
+          3. 首次使用请运行 `cloudpan189-go login` 进行登录
+          
+          详细技术说明请查看：[README-v1.4.md](https://github.com/MaurUppi/cloudpan189-go/blob/master/README-v1.4.md)
+        draft: false
+        prerelease: false
+        
+    - name: Upload Release Assets
+      run: |
+        # 上传所有构建的文件
+        for file in builds/*; do
+          if [ -f "$file" ]; then
+            echo "Uploading $file"
+            gh release upload ${{ steps.get_version.outputs.VERSION }} "$file"
+          fi
+        done
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
