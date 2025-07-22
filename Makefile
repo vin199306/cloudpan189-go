@@ -44,17 +44,17 @@ test:
 					echo "Running test file: $(FILE)" >&2; \
 					PKG_DIR=$$(dirname "$(FILE)"); \
 					if [ -n "$$PKG_DIR" ] && [ "$$PKG_DIR" != "." ]; then \
-						go test -v ./$$PKG_DIR 2>/dev/null || echo "No tests in $$PKG_DIR" >&2; \
+						go test -ldflags="-checklinkname=0" -v ./$$PKG_DIR 2>/dev/null || echo "No tests in $$PKG_DIR" >&2; \
 					else \
-						go test -v . 2>/dev/null || echo "No tests in current directory" >&2; \
+						go test -ldflags="-checklinkname=0" -v . 2>/dev/null || echo "No tests in current directory" >&2; \
 					fi; \
 				else \
 					echo "Running tests for package containing: $(FILE)" >&2; \
 					PKG_DIR=$$(dirname "$(FILE)"); \
 					if [ -n "$$PKG_DIR" ] && [ "$$PKG_DIR" != "." ]; then \
-						go test -v ./$$PKG_DIR 2>/dev/null || echo "No tests in $$PKG_DIR" >&2; \
+						go test -ldflags="-checklinkname=0" -v ./$$PKG_DIR 2>/dev/null || echo "No tests in $$PKG_DIR" >&2; \
 					else \
-						go test -v . 2>/dev/null || echo "No tests in current directory" >&2; \
+						go test -ldflags="-checklinkname=0" -v . 2>/dev/null || echo "No tests in current directory" >&2; \
 					fi; \
 				fi \
 				;; \
@@ -88,7 +88,7 @@ lint-all:
 # Project-wide testing
 test-all:
 	@echo "Running all tests with race detection" >&2
-	@if ! go test -v -race ./...; then \
+	@if ! go test -ldflags="-checklinkname=0" -v -race ./...; then \
 		exit 1; \
 	fi
 
