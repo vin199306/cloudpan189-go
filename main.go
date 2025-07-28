@@ -150,7 +150,7 @@ func main() {
             // 防止运行命令时程序被结束, 终端出现异常
             lineObj.Pause()
             c := app.NewContext(nil, nil, nil)
-			err = app.RunContext(c, s)
+			err = app.RunContext(c, s) 
             lineObj.Resume()
             if err != nil {
                 fmt.Println(err)
