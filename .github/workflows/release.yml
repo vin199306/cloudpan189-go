@@ -18,15 +18,8 @@ jobs:
       with:
         go-version: '1.23'
         
-    - name: Install golangci-lint
-      run: |
-        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2  # 指定版本或使用 latest
-        
     - name: Code Checks
       run: |
-        # 将 golangci-lint 添加到 PATH
-        export PATH=$PATH:$(go env GOPATH)/bin
-        
         # 运行 golangci-lint
         golangci-lint run --timeout=5m --disable=errcheck,staticcheck,ineffassign,unused
         
@@ -46,6 +39,7 @@ jobs:
           VERSION=$(date +"v%Y%m%d-%H%M%S")
         fi
         echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
       
     - name: Build and Package Binaries
       env:
@@ -57,10 +51,16 @@ jobs:
           GOOS=${target%/*}
           GOARCH=${target#*/}
           OUTPUT_NAME="cloudpan189-go"
-          [ "$GOOS" = "windows" ] && OUTPUT_NAME+=".exe"
+          if [ "$GOOS" = "windows" ]; then
+            OUTPUT_NAME+=".exe"
+          fi
           CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -a -ldflags '-extldflags "-static" -checklinkname=0' -o builds/${OUTPUT_NAME} .
           ARCHIVE_NAME="cloudpan189-go-${VERSION}-${GOOS}-${GOARCH}"
-          cd builds && [ "$GOOS" = "windows" ] && zip -r ${ARCHIVE_NAME}.zip ${OUTPUT_NAME} || tar -czf ${ARCHIVE_NAME}.tar.gz ${OUTPUT_NAME} && cd ..
+          if [ "$GOOS" = "windows" ]; then
+            cd builds && zip -r ${ARCHIVE_NAME}.zip ${OUTPUT_NAME} && cd ..
+          else
+            cd builds && tar -czf ${ARCHIVE_NAME}.tar.gz ${OUTPUT_NAME} && cd ..
+          fi
           rm builds/${OUTPUT_NAME}
         done
         
@@ -73,14 +73,4 @@ jobs:
         draft: false
         prerelease: false
         make_latest: true
-
-    - name: SFTP Upload
-      uses: wlixcc/SFTP-Deploy-Action@v1.2.4
-      with:
-        username: admin
-        password: ${{ secrets.SFTP_PASSWORD }}
-        host: rclone.yanwen.cloud
-        port: 22
-        local_path: builds/*
-        remote_path: /root  # 替换为实际的远程路径
-        sftp_only: true
+    

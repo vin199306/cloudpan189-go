@@ -25,8 +25,7 @@ import (
 	"strings"
 	"time"
 	"unicode"
-	"bufio"
-    "io"
+
 	"github.com/peterh/liner"
 	"github.com/tickstep/cloudpan189-go/cmder/cmdliner"
 	"github.com/tickstep/cloudpan189-go/cmder/cmdliner/args"
@@ -39,7 +38,6 @@ import (
 	"github.com/tickstep/library-go/converter"
 	"github.com/tickstep/library-go/logger"
 	"github.com/urfave/cli"
-	
 )
 
 const (
@@ -85,7 +83,9 @@ func main() {
 	defer config.Config.Close()
 
 	// check & relogin
-	checkLoginExpiredAndRelogin()
+	if!config.IsLoggedIn {
+        checkLoginExpiredAndRelogin()
+    }
 
 	app := cli.NewApp()
 	cmder.SetApp(app)
@@ -311,44 +311,6 @@ func main() {
 			}
 		}()
 
-		// 检测是否为管道输入
-        if cmdutil.IsPipeInput() {
-            reader := bufio.NewReader(os.Stdin)
-            for {
-                line, err := reader.ReadString('\n')
-                if err != nil {
-                    if err == io.EOF {
-                        break
-                    }
-                    fmt.Println(err)
-                    return
-                }
-                line = strings.TrimSpace(line)
-                if line == "" {
-                    continue
-                }
-
-                cmdArgs := args.Parse(line)
-                if len(cmdArgs) == 0 {
-                    continue
-                }
-
-                s := []string{os.Args[0]}
-                s = append(s, cmdArgs...)
-
-                var lineObj = cmdliner.NewLiner()
-                // 恢复原始终端状态
-                // 防止运行命令时程序被结束, 终端出现异常
-                lineObj.Pause()
-                err = app.Run(s)
-                lineObj.Resume()
-                if err != nil {
-                    fmt.Println(err)
-                }
-            }
-            return
-        }
-
 		for {
 			var (
 				prompt     string
@@ -398,9 +360,6 @@ func main() {
 			line.Pause()
 			c.App.Run(s)
 			line.Resume()
-			if err != nil {
-                fmt.Println(err)
-            }
 		}
 	}
 
@@ -590,8 +549,5 @@ func main() {
 
 	sort.Sort(cli.FlagsByName(app.Flags))
 	sort.Sort(cli.CommandsByName(app.Commands))
-	err := app.Run(os.Args)
-    if err != nil {
-        fmt.Println(err)
-    }
+	app.Run(os.Args)
 }

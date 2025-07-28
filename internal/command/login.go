@@ -88,6 +88,8 @@ func CmdLogin() cli.Command {
 			cloudUser.LoginUserPassword = config.EncryptString(passowrd)
 			config.Config.SetActiveUser(cloudUser)
 			fmt.Println("天翼帐号登录成功: ", cloudUser.Nickname)
+			// 设置登录状态标志
+            config.IsLoggedIn = true
 			return nil
 		},
 		// 命令的附加options参数说明，使用 help login 命令即可查看
