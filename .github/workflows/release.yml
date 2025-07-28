@@ -1,16 +1,14 @@
 name: Release
 
 on:
-  repository_dispatch:
-  workflow_dispatch:
   push:
-    tags:
-      - 'v*.*.*'
+    branches: [ master, main ]
 
-jobs:
-  lint:
-    name: Lint
+jobs: 
+  release:
+    name: Build and Release
     runs-on: ubuntu-latest
+    #if: github.ref_type == 'tag'
     
     steps:
     - name: Checkout code
@@ -26,19 +24,6 @@ jobs:
       with:
         version: latest
         args: --timeout=5m --disable=errcheck,staticcheck,ineffassign,unused
-
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.23'
         
     - name: Run Gosec Security Scanner
       uses: securego/gosec@master
@@ -48,23 +33,7 @@ jobs:
     - name: Upload SARIF file
       uses: github/codeql-action/upload-sarif@v3
       with:
-        sarif_file: results.sarif
-
-  release:
-    name: Build and Release
-    runs-on: ubuntu-latest
-    needs: [lint, security]
-    #if: github.ref_type == 'tag'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.23'
-        
+        sarif_file: results.sarif    
     - name: Get version
       id: get_version
       run: |
