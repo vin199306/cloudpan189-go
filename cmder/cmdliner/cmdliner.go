@@ -32,9 +32,17 @@ type CmdLiner struct {
 func NewLiner() *CmdLiner {
 	pl := &CmdLiner{}
 	pl.tmode, _ = liner.TerminalMode()
+	if err != nil {
+        log.Printf("Failed to get terminal mode for tmode: %v", err)
+        // 这里可以根据实际情况进行更详细的错误处理，比如设置默认值或者返回错误
+    }
 
 	line := liner.NewLiner()
 	pl.lmode, _ = liner.TerminalMode()
+	if err != nil {
+        log.Printf("Failed to get terminal mode for lmode: %v", err)
+        // 这里可以根据实际情况进行更详细的错误处理，比如设置默认值或者返回错误
+    }
 
 	line.SetMultiLineMode(true)
 	line.SetCtrlCAborts(true)
@@ -46,14 +54,17 @@ func NewLiner() *CmdLiner {
 
 // Pause 暂停服务
 func (pl *CmdLiner) Pause() error {
-	if pl.paused {
-		panic("CmdLiner already paused")
-	}
+    if pl.paused {
+        panic("CmdLiner already paused")
+    }
 
-	pl.paused = true
-	pl.DoWriteHistory()
+    pl.paused = true
+    pl.DoWriteHistory()
 
-	return pl.tmode.ApplyMode()
+    if pl.tmode == nil {
+        return fmt.Errorf("terminal mode is not initialized")
+    }
+    return pl.tmode.ApplyMode()
 }
 
 // Resume 恢复服务
