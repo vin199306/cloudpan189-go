@@ -39,6 +39,7 @@ import (
 	"github.com/tickstep/library-go/converter"
 	"github.com/tickstep/library-go/logger"
 	"github.com/urfave/cli"
+	
 )
 
 const (
@@ -148,8 +149,8 @@ func main() {
             // 恢复原始终端状态
             // 防止运行命令时程序被结束, 终端出现异常
             lineObj.Pause()
-            c := cli.NewContext(app, cli.NewFlagSet("", cli.PanicOnError), nil)
-            err = app.Run(s)
+            c := app.NewContext(nil, nil, nil)
+			err = app.RunContext(c, s)
             lineObj.Resume()
             if err != nil {
                 fmt.Println(err)
