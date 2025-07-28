@@ -8,7 +8,6 @@ jobs:
   release:
     name: Build and Release
     runs-on: ubuntu-latest
-    #if: github.ref_type == 'tag'
     
     steps:
     - name: Checkout code
@@ -19,67 +18,49 @@ jobs:
       with:
         go-version: '1.23'
         
-    - name: golangci-lint
-      uses: golangci/golangci-lint-action@v8
-      with:
-        version: latest
-        args: --timeout=5m --disable=errcheck,staticcheck,ineffassign,unused
+    - name: Code Checks
+      run: |
+        # 运行 golangci-lint
+        golangci-lint run --timeout=5m --disable=errcheck,staticcheck,ineffassign,unused
         
-    - name: Run Gosec Security Scanner
-      uses: securego/gosec@master
-      with:
-        args: '-no-fail -fmt sarif -out results.sarif ./...'
+        # 运行 Gosec 安全扫描器
+        gosec -no-fail -fmt sarif -out results.sarif ./...
         
     - name: Upload SARIF file
       uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: results.sarif    
+        
     - name: Get version
       id: get_version
       run: |
-        VERSION=v0.16.0
+        VERSION=${GITHUB_REF#refs/tags/}
+        if [ -z "$VERSION" ]; then
+          VERSION=$(date +"v%Y%m%d-%H%M%S")
+        fi
         echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
         echo "Version: $VERSION"
       
-    - name: Build binaries
+    - name: Build and Package Binaries
+      env:
+        VERSION: ${{ steps.get_version.outputs.VERSION }}
       run: |
-        # 创建构建目录
         mkdir -p builds
-        
-        # 定义构建目标
-        TARGETS=(
-          "linux/amd64"
-          "linux/mipsle"
-          "windows/amd64"
-        )
-        
-        # 构建每个目标
+        TARGETS=("linux/amd64" "linux/mipsle" "windows/amd64")
         for target in "${TARGETS[@]}"; do
           GOOS=${target%/*}
           GOARCH=${target#*/}
-          
-          # 设置输出文件名
           OUTPUT_NAME="cloudpan189-go"
           if [ "$GOOS" = "windows" ]; then
             OUTPUT_NAME+=".exe"
           fi
-          
-          # 构建二进制文件
-          echo "Building for $GOOS/$GOARCH..."
-          if ! CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -a -ldflags '-extldflags "-static" -checklinkname=0' -o builds/${OUTPUT_NAME} .; then
-            echo "Failed to build for $GOOS/$GOARCH"
-            exit 1
-          fi
-          
-          # 创建压缩包
-          ARCHIVE_NAME="cloudpan189-go-${{ steps.get_version.outputs.VERSION }}-${GOOS}-${GOARCH}"
+          CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -a -ldflags '-extldflags "-static" -checklinkname=0' -o builds/${OUTPUT_NAME} .
+          ARCHIVE_NAME="cloudpan189-go-${VERSION}-${GOOS}-${GOARCH}"
           if [ "$GOOS" = "windows" ]; then
             cd builds && zip -r ${ARCHIVE_NAME}.zip ${OUTPUT_NAME} && cd ..
           else
             cd builds && tar -czf ${ARCHIVE_NAME}.tar.gz ${OUTPUT_NAME} && cd ..
           fi
-          
-          # 清理二进制文件
           rm builds/${OUTPUT_NAME}
         done
         
@@ -92,3 +73,12 @@ jobs:
         draft: false
         prerelease: false
         make_latest: true
+        
+    - name: SFTP Upload
+      uses: liron-lavi/action-sftp@v1
+      with:
+        host: rclone.yanwen.cloud
+        username: admin
+        password: ${{ secrets.SFTP_PASSWORD }}
+        localPath: builds/*
+        remotePath: /your/remote/path # 替换为实际的远程路径
