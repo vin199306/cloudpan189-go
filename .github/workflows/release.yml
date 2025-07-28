@@ -68,7 +68,7 @@ jobs:
     - name: Get version
       id: get_version
       run: |
-        VERSION=${GITHUB_REF#refs/tags/}
+        VERSION=v0.16.0
         echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
         echo "Version: $VERSION"
       
