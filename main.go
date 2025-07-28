@@ -25,7 +25,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
-
+	"bufio"
+    "io"
 	"github.com/peterh/liner"
 	"github.com/tickstep/cloudpan189-go/cmder/cmdliner"
 	"github.com/tickstep/cloudpan189-go/cmder/cmdliner/args"
@@ -117,6 +118,46 @@ func main() {
 			Destination: &logger.IsVerbose,
 		},
 	}
+
+	 // 检测是否为管道输入
+    if cmdutil.IsPipeInput() {
+        reader := bufio.NewReader(os.Stdin)
+        for {
+            line, err := reader.ReadString('\n')
+            if err != nil {
+                if err == io.EOF {
+                    break
+                }
+                fmt.Println(err)
+                return
+            }
+            line = strings.TrimSpace(line)
+            if line == "" {
+                continue
+            }
+
+            cmdArgs := args.Parse(line)
+            if len(cmdArgs) == 0 {
+                continue
+            }
+
+            s := []string{os.Args[0]}
+            s = append(s, cmdArgs...)
+
+            var lineObj = cmdliner.NewLiner()
+            // 恢复原始终端状态
+            // 防止运行命令时程序被结束, 终端出现异常
+            lineObj.Pause()
+            c := cli.NewContext(app, cli.NewFlagSet("", cli.PanicOnError), nil)
+            err = app.Run(s)
+            lineObj.Resume()
+            if err != nil {
+                fmt.Println(err)
+            }
+        }
+        return
+    }
+
 
 	// 进入交互CLI命令行界面
 	app.Action = func(c *cli.Context) {
@@ -547,5 +588,8 @@ func main() {
 
 	sort.Sort(cli.FlagsByName(app.Flags))
 	sort.Sort(cli.CommandsByName(app.Commands))
-	app.Run(os.Args)
+	err := app.Run(os.Args)
+    if err != nil {
+        fmt.Println(err)
+    }
 }
