@@ -61,6 +61,8 @@ var (
 	Config = NewConfig(configFilePath)
 
 	AppVersion string
+	
+	IsLoggedIn bool
 )
 
 type UpdateCheckInfo struct {
