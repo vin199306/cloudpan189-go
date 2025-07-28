@@ -79,17 +79,9 @@ jobs:
         
         # 定义构建目标
         TARGETS=(
-          #"linux/amd64"
-          #"linux/arm64" 
-          #"linux/386"
-          #"linux/arm"
-          #"linux/mips64"
+          "linux/amd64"
           "linux/mipsle"
-          #"windows/amd64"
-          #"windows/386"
-          #"darwin/amd64"
-          #"darwin/arm64"
-          #"android/arm64"
+          "windows/amd64"
         )
         
         # 构建每个目标
