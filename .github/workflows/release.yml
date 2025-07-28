@@ -73,12 +73,14 @@ jobs:
         draft: false
         prerelease: false
         make_latest: true
-        
+
     - name: SFTP Upload
-      uses: liron-lavi/action-sftp@v1
+      uses: wlixcc/SFTP-Deploy-Action@v1.2.4
       with:
-        host: rclone.yanwen.cloud
         username: admin
         password: ${{ secrets.SFTP_PASSWORD }}
-        localPath: builds/*
-        remotePath: /your/remote/path # 替换为实际的远程路径
+        host: rclone.yanwen.cloud
+        port: 22  # 默认SFTP端口，可根据实际情况修改
+        local_path: builds/*  # 本地文件路径
+        remote_path: /root  # 远程服务器目标路径，根据实际需求修改
+        sftp_only: true  # 仅使用SFTP协议
