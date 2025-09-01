@@ -14,12 +14,16 @@
 package config
 
 import (
+	"context"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/tickstep/cloudpan189-api/cloudpan"
@@ -88,6 +92,8 @@ type PanConfig struct {
 	Proxy           string          `json:"proxy"`        // 代理
 	LocalAddrs      string          `json:"localAddrs"`   // 本地网卡地址
 	PreferIPType    string          `json:"preferIPType"` // 优先IP类型，IPv4或者IPv6
+	DNSServer       string          `json:"dnsServer"`    // 自定义DNS服务器地址
+	DefaultDNS      []string        `json:"defaultDNS"`   // 默认DNS服务器列表
 	UpdateCheckInfo UpdateCheckInfo `json:"updateCheckInfo"`
 
 	configFilePath string
@@ -251,6 +257,14 @@ func (c *PanConfig) loadConfigFromFile() (err error) {
 }
 
 func (c *PanConfig) initDefaultConfig() {
+	// 设置默认DNS服务器
+	c.DefaultDNS = []string{
+		"8.8.8.8:53",      // Google DNS
+		"1.1.1.1:53",      // Cloudflare DNS
+		"223.5.5.5:53",    // AliDNS
+		"119.29.29.29:53", // DNSPod
+	}
+
 	// 设置默认的下载路径
 	switch runtime.GOOS {
 	case "windows":
@@ -444,5 +458,72 @@ func (c *PanConfig) HTTPClient(ua string) *requester.HTTPClient {
 	if ua != "" {
 		client.SetUserAgent(ua)
 	}
+
+	// 设置DNS解析处理器
+	transport, ok := client.Transport.(*http.Transport)
+	if !ok || transport == nil {
+		transport = &http.Transport{}
+		client.Transport = transport
+	}
+	
+	dialer := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+
+	transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		host, port, err := net.SplitHostPort(addr)
+		if err != nil {
+			return nil, err
+		}
+
+		// 尝试使用当前DNS服务器解析
+		resolver := &net.Resolver{
+			PreferGo: true,
+			Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+				d := net.Dialer{Timeout: 5 * time.Second}
+				return d.DialContext(ctx, "udp", c.GetCurrentDNS())
+			},
+		}
+
+		ips, err := resolver.LookupIP(ctx, "ip", host)
+		if err != nil {
+			// DNS解析失败，切换到下一个DNS服务器
+			nextDNS := c.SwitchToNextDNS()
+			CmdConfigVerbose.Infof("DNS解析失败，切换到 %s\n", nextDNS)
+
+			// 使用新的DNS服务器重试解析
+			resolver = &net.Resolver{
+				PreferGo: true,
+				Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+					d := net.Dialer{Timeout: 5 * time.Second}
+					return d.DialContext(ctx, "udp", nextDNS)
+				},
+			}
+
+			ips, err = resolver.LookupIP(ctx, "ip", host)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// 选择合适的IP地址
+		var ip net.IP
+		for _, ipAddr := range ips {
+			if strings.ToLower(c.PreferIPType) == "ipv4" && ipAddr.To4() != nil {
+				ip = ipAddr
+				break
+			} else if strings.ToLower(c.PreferIPType) == "ipv6" && ipAddr.To4() == nil {
+				ip = ipAddr
+				break
+			}
+		}
+		if ip == nil && len(ips) > 0 {
+			ip = ips[0]
+		}
+
+		return dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
+	}
+
 	return client
 }

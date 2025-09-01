@@ -1,6 +1,6 @@
 module github.com/tickstep/cloudpan189-go
 
-go 1.23
+go 1.19
 
 require (
 	github.com/GeertJohan/go.incremental v1.0.0
@@ -11,7 +11,7 @@ require (
 	github.com/peterh/liner v1.1.1-0.20190305032635-6f820f8f90ce
 	github.com/tickstep/bolt v1.3.4
 	github.com/tickstep/cloudpan189-api v0.1.0
-	github.com/tickstep/library-go v0.1.1
+	github.com/tickstep/library-go v0.1.2
 	github.com/urfave/cli v1.21.1-0.20190817182405-23c83030263f
 )
 

@@ -16,11 +16,12 @@ package command
 import (
 	"errors"
 	"fmt"
+	"strconv"
+
 	"github.com/tickstep/cloudpan189-go/cmder"
 	"github.com/tickstep/cloudpan189-go/cmder/cmdutil"
 	"github.com/tickstep/cloudpan189-go/library/crypto"
 	"github.com/tickstep/library-go/getip"
-	"strconv"
 
 	"github.com/urfave/cli"
 
@@ -140,6 +141,13 @@ func CmdConfig() cli.Command {
 					if c.IsSet("ip_type") {
 						config.Config.SetPreferIPType(c.String("ip_type"))
 					}
+					if c.IsSet("dns") {
+						err := config.Config.SetDNSServer(c.String("dns"))
+						if err != nil {
+							fmt.Printf("设置DNS服务器错误: %s\n", err)
+							return nil
+						}
+					}
 
 					err := config.Config.Save()
 					if err != nil {
@@ -184,6 +192,10 @@ func CmdConfig() cli.Command {
 					cli.StringFlag{
 						Name:  "local_addrs",
 						Usage: "设置本地网卡地址, 多个地址用逗号隔开",
+					},
+					cli.StringFlag{
+						Name:  "dns",
+						Usage: "设置自定义DNS服务器地址，例如：8.8.8.8",
 					},
 					cli.StringFlag{
 						Name:  "ip_type",
