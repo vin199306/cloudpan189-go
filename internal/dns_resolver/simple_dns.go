@@ -11,6 +11,16 @@ import (
 var (
 	customDNSServer string
 	defaultServers = []string{"114.114.114.114", "8.8.8.8"}
+	
+	// IPv6 DNS服务器配置
+	ipv6DNSServers = []string{
+		// 腾讯DNS IPv6地址
+		"2402:4e00::",
+		"2402:4e00:1::",
+		// 阿里DNS IPv6地址
+		"2400:3200::1",
+		"2400:3200:baba::1",
+	}
 )
 
 // SetDNSServer 设置自定义DNS服务器
@@ -46,25 +56,39 @@ func LookupIP(host string) ([]net.IP, error) {
 
 // lookupWithDNSServer 使用指定DNS服务器解析域名
 func lookupWithDNSServer(host, dnsServer string) ([]net.IP, error) {
-	// 确保使用IPv4地址
-	ips, err := net.LookupIP(host)
-	if err != nil {
-		return nil, err
+	// 创建自定义解析器
+	resolver := &net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			dialer := net.Dialer{Timeout: 5 * time.Second}
+			
+			// 根据DNS服务器地址类型选择合适的网络协议
+			var networkType string
+			if isIPv6Address(dnsServer) {
+				networkType = "udp6"
+			} else {
+				networkType = "udp4"
+			}
+			
+			// 确保DNS服务器地址格式正确
+			serverAddr := formatDNSServerAddress(dnsServer)
+			return dialer.DialContext(ctx, networkType, serverAddr)
+		},
 	}
 	
-	// 过滤IPv4地址
-	var ipv4IPs []net.IP
-	for _, ip := range ips {
-		if ip.To4() != nil {
-			ipv4IPs = append(ipv4IPs, ip)
+	// 根据DNS服务器类型决定解析策略
+	if isIPv6Address(dnsServer) {
+		// IPv6 DNS服务器，支持IPv6和IPv4解析
+		return resolver.LookupIP(context.Background(), "ip", host)
+	} else {
+		// IPv4 DNS服务器，优先IPv4
+		ips, err := resolver.LookupIP(context.Background(), "ip4", host)
+		if err == nil && len(ips) > 0 {
+			return ips, nil
 		}
+		// IPv4失败时尝试IPv6
+		return resolver.LookupIP(context.Background(), "ip6", host)
 	}
-	
-	if len(ipv4IPs) > 0 {
-		return ipv4IPs, nil
-	}
-	
-	return ips, nil
 }
 
 // lookupWithSystemDNS 使用系统DNS但避免IPv6回环
@@ -120,6 +144,38 @@ func ForceIPv4(host string) ([]net.IP, error) {
 	}
 	
 	return resolver.LookupIP(context.Background(), "ip4", host)
+}
+
+// isIPv6Address 判断是否为IPv6地址
+func isIPv6Address(addr string) bool {
+	ip := net.ParseIP(addr)
+	return ip != nil && ip.To4() == nil
+}
+
+// formatDNSServerAddress 格式化DNS服务器地址
+func formatDNSServerAddress(addr string) string {
+	// 检查是否已经包含端口
+	if _, _, err := net.SplitHostPort(addr); err == nil {
+		return addr
+	}
+	
+	// 添加默认DNS端口53
+	ip := net.ParseIP(addr)
+	if ip == nil {
+		return addr + ":53"
+	}
+	
+	// IPv6地址需要加括号
+	if isIPv6Address(addr) {
+		return "[" + addr + "]:53"
+	}
+	
+	return addr + ":53"
+}
+
+// GetIPv6DNSServers 获取IPv6 DNS服务器列表
+func GetIPv6DNSServers() []string {
+	return ipv6DNSServers
 }
 
 // GetDNSServer 获取当前DNS服务器
