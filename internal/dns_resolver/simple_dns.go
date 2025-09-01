@@ -21,6 +21,9 @@ var (
 		"2400:3200::1",
 		"2400:3200:baba::1",
 	}
+	
+	// 是否忽略系统默认DNS（解决Linux系统/etc/resolv.conf不存在的问题）
+	ignoreSystemDNS = true
 )
 
 // SetDNSServer 设置自定义DNS服务器
@@ -35,22 +38,38 @@ func SetDNSServer(server string) {
 
 // LookupIP 解析域名到IP地址
 func LookupIP(host string) ([]net.IP, error) {
-	// 强制使用IPv4优先，避免IPv6回环地址问题
+	// 如果有自定义DNS服务器，优先使用
 	if customDNSServer != "" {
-		// 使用自定义DNS服务器，明确指定IPv4
 		return lookupWithDNSServer(host, customDNSServer)
 	}
 	
-	// 系统默认DNS，但避免使用IPv6回环
-	// 使用备用DNS服务器列表
-	for _, dnsServer := range defaultServers {
-		ips, err := lookupWithDNSServer(host, dnsServer)
-		if err == nil && len(ips) > 0 {
-			return ips, nil
+	// 忽略系统默认DNS，直接使用公共DNS服务器
+	// 解决Linux系统/etc/resolv.conf不存在的问题
+	if ignoreSystemDNS {
+		// 使用公共DNS服务器列表，避免依赖系统配置
+		allServers := append([]string{}, defaultServers...)
+		allServers = append(allServers, ipv6DNSServers...)
+		
+		for _, dnsServer := range allServers {
+			ips, err := lookupWithDNSServer(host, dnsServer)
+			if err == nil && len(ips) > 0 {
+				return ips, nil
+			}
 		}
+		
+		// 如果所有公共DNS都失败，使用硬编码的可靠DNS
+		fallbackServers := []string{"8.8.8.8", "1.1.1.1", "114.114.114.114"}
+		for _, dnsServer := range fallbackServers {
+			ips, err := lookupWithDNSServer(host, dnsServer)
+			if err == nil && len(ips) > 0 {
+				return ips, nil
+			}
+		}
+		
+		return nil, fmt.Errorf("所有DNS服务器都无法解析 %s", host)
 	}
 	
-	// 最后回退到系统默认，但使用IPv4
+	// 回退到系统默认（不推荐，仅作兼容）
 	return lookupWithSystemDNS(host)
 }
 
@@ -91,36 +110,57 @@ func lookupWithDNSServer(host, dnsServer string) ([]net.IP, error) {
 	}
 }
 
-// lookupWithSystemDNS 使用系统DNS但避免IPv6回环
+// lookupWithSystemDNS 使用系统DNS但避免localhost问题
+// 注意：此函数仅作向后兼容，实际使用中会优先使用公共DNS
 func lookupWithSystemDNS(host string) ([]net.IP, error) {
-	// 创建自定义解析器，避免IPv6回环
+	// 创建一个完全独立的解析器，避免系统配置
 	resolver := &net.Resolver{
 		PreferGo: true,
 		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-			// 明确使用IPv4地址，避免[::1]:53
-			if network == "udp" || network == "tcp" {
-				network = "udp4"
-			}
+			// 强制使用公共DNS服务器，完全忽略系统配置
+			// 避免使用localhost (127.0.0.1:53 或 [::1]:53)
 			
-			// 如果地址是本地DNS回环，使用公共DNS
-			if address == "[::1]:53" || address == "127.0.0.1:53" {
-				// 使用公共DNS服务器
-				dialer := net.Dialer{Timeout: 5 * time.Second}
-				return dialer.DialContext(ctx, "udp4", "8.8.8.8:53")
+			// 使用硬编码的公共DNS服务器列表
+			publicDNS := []string{
+				"8.8.8.8:53",    // Google
+				"8.8.4.4:53",    // Google
+				"1.1.1.1:53",    // Cloudflare
+				"1.0.0.1:53",    // Cloudflare
+				"114.114.114.114:53", // 114DNS
+				"223.5.5.5:53",  // AliDNS
+				"2402:4e00::53", // Tencent IPv6
+				"2400:3200::1:53", // Ali IPv6
 			}
 			
 			dialer := net.Dialer{Timeout: 5 * time.Second}
-			return dialer.DialContext(ctx, network, address)
+			
+			// 根据网络类型选择合适的DNS服务器
+			var server string
+			if network == "udp6" || network == "tcp6" {
+				// IPv6网络，使用IPv6 DNS
+				server = publicDNS[6] // 2402:4e00::53
+			} else {
+				// IPv4网络，使用IPv4 DNS
+				server = publicDNS[0] // 8.8.8.8:53
+			}
+			
+			return dialer.DialContext(ctx, network, server)
 		},
 	}
 	
-	// 优先使用IPv4解析
+	// 尝试IPv4解析
 	ips, err := resolver.LookupIP(context.Background(), "ip4", host)
 	if err == nil && len(ips) > 0 {
 		return ips, nil
 	}
 	
-	// 如果IPv4失败，尝试获取所有IP
+	// 尝试IPv6解析
+	ips, err = resolver.LookupIP(context.Background(), "ip6", host)
+	if err == nil && len(ips) > 0 {
+		return ips, nil
+	}
+	
+	// 尝试双栈解析
 	return resolver.LookupIP(context.Background(), "ip", host)
 }
 

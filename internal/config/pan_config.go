@@ -193,11 +193,11 @@ func (c *PanConfig) init() error {
 	}
 	requester.SetPreferIPType(t)
 		
-		// 设置DNS服务器 - 强制使用IPv4避免IPv6回环
+		// 设置DNS服务器 - 忽略系统默认DNS，避免Linux系统/etc/resolv.conf问题
 		if c.DNSServer != "" {
 			requester_wrapper.SetDNSServer(c.DNSServer)
 		} else {
-			// 如果没有设置自定义DNS，使用公共DNS避免IPv6回环
+			// 默认使用公共DNS，避免依赖系统配置
 			requester_wrapper.SetDNSServer("8.8.8.8")
 		}
 

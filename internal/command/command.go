@@ -99,7 +99,9 @@ func CmdConfig() cli.Command {
 		cloudpan189-go config set -dns 8.8.8.8
 		cloudpan189-go config set -dns 114.114.114.114
 		cloudpan189-go config set -dns 2402:4e00::
-		cloudpan189-go config set -dns 2400:3200::1`,
+		cloudpan189-go config set -dns 2400:3200::1
+		cloudpan189-go config set -dns 8.8.8.8
+		cloudpan189-go config set -dns 114.114.114.114`,
 				Action: func(c *cli.Context) error {
 					if c.NumFlags() <= 0 || c.NArg() > 0 {
 						cli.ShowCommandHelp(c, c.Command.Name)
