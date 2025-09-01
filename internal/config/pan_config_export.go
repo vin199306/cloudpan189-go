@@ -92,7 +92,8 @@ func (c *PanConfig) PrintTable() {
 		[]string{"savedir", c.SaveDir, "", "下载文件的储存目录"},
 		[]string{"proxy", c.Proxy, "", "设置代理, 支持 http/socks5 代理，例如：http://127.0.0.1:8888"},
 		[]string{"local_addrs", c.LocalAddrs, "", "设置本地网卡地址, 多个地址用逗号隔开"},
-		[]string{"ip_type", c.PreferIPType, "ipv4-优先IPv4，ipv6-优先IPv6", "设置域名解析IP优先类型。修改后需要重启应用生效"},
+		[]string{"ip_type", c.PreferIPType, "ipv4, ipv6", "设置IP类型，优先IPv4或IPv6"},
+		[]string{"dns_server", c.DNSServer, "114.114.114.114, 8.8.8.8", "设置DNS服务器地址，为空则使用系统DNS"},
 	})
 	tb.Render()
 }

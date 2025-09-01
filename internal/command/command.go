@@ -90,12 +90,14 @@ func CmdConfig() cli.Command {
 	注意:
 		可通过设置环境变量 CLOUD189_CONFIG_DIR, 指定配置文件存放的目录.
 
-		cache_size 的值支持可选设置单位, 单位不区分大小写, b 和 B 均表示字节的意思, 如 64KB, 1MB, 32kb, 65536b, 65536
-		max_download_rate, max_upload_rate 的值支持可选设置单位, 单位为每秒的传输速率, 后缀'/s' 可省略, 如 2MB/s, 2MB, 2m, 2mb 均为一个意思
+	cache_size 的值支持可选设置单位, 单位不区分大小写, b 和 B 均表示字节的意思, 如 64KB, 1MB, 32kb, 65536b, 65536
+	max_download_rate, max_upload_rate 的值支持可选设置单位, 单位为每秒的传输速率, 后缀'/s' 可省略, 如 2MB/s, 2MB, 2m, 2mb 均为一个意思
 
 	例子:
 		cloudpan189-go config set -cache_size 64KB
-		cloudpan189-go config set -cache_size 16384 -max_download_parallel 200 -savedir D:/download`,
+		cloudpan189-go config set -cache_size 16384 -max_download_parallel 200 -savedir D:/download
+		cloudpan189-go config set -dns 8.8.8.8
+		cloudpan189-go config set -dns 114.114.114.114`,
 				Action: func(c *cli.Context) error {
 					if c.NumFlags() <= 0 || c.NArg() > 0 {
 						cli.ShowCommandHelp(c, c.Command.Name)
@@ -139,6 +141,9 @@ func CmdConfig() cli.Command {
 					}
 					if c.IsSet("ip_type") {
 						config.Config.SetPreferIPType(c.String("ip_type"))
+					}
+					if c.IsSet("dns") {
+						config.Config.DNSServer = c.String("dns")
 					}
 
 					err := config.Config.Save()
@@ -189,8 +194,12 @@ func CmdConfig() cli.Command {
 						Name:  "ip_type",
 						Usage: "设置域名解析IP优先类型",
 					},
+					cli.StringFlag{
+						Name:  "dns",
+						Usage: "设置DNS服务器地址",
+					},
+					},
 				},
-			},
 		},
 	}
 }

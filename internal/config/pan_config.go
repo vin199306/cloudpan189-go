@@ -28,6 +28,7 @@ import (
 	"github.com/tickstep/cloudpan189-go/library/homedir"
 	"github.com/tickstep/library-go/logger"
 	"github.com/tickstep/library-go/requester"
+	"github.com/tickstep/cloudpan189-go/internal/requester_wrapper"
 )
 
 const (
@@ -88,6 +89,7 @@ type PanConfig struct {
 	Proxy           string          `json:"proxy"`        // 代理
 	LocalAddrs      string          `json:"localAddrs"`   // 本地网卡地址
 	PreferIPType    string          `json:"preferIPType"` // 优先IP类型，IPv4或者IPv6
+	DNSServer       string          `json:"dnsServer"`    // DNS服务器地址
 	UpdateCheckInfo UpdateCheckInfo `json:"updateCheckInfo"`
 
 	configFilePath string
@@ -190,6 +192,11 @@ func (c *PanConfig) init() error {
 		t = requester.IPv6
 	}
 	requester.SetPreferIPType(t)
+		
+		// 设置DNS服务器
+		if c.DNSServer != "" {
+			requester_wrapper.SetDNSServer(c.DNSServer)
+		}
 
 	return nil
 }
@@ -269,6 +276,7 @@ func (c *PanConfig) initDefaultConfig() {
 	}
 	c.ConfigVer = ConfigVersion
 	c.PreferIPType = "ipv4" // 默认优先IPv4
+	c.DNSServer = "" // 默认使用系统DNS
 }
 
 // GetConfigDir 获取配置路径

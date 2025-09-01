@@ -116,6 +116,10 @@ func main() {
 			EnvVar:      config.EnvVerbose,
 			Destination: &logger.IsVerbose,
 		},
+		cli.StringFlag{
+			Name:  "dns",
+			Usage: "指定DNS服务器地址，例如: 8.8.8.8 或 114.114.114.114",
+		},
 	}
 
 	// 进入交互CLI命令行界面
@@ -123,6 +127,13 @@ func main() {
 		if c.NArg() != 0 {
 			fmt.Printf("未找到命令: %s\n运行命令 %s help 获取帮助\n", c.Args().Get(0), app.Name)
 			return
+		}
+
+		// 处理DNS参数
+		if dnsServer := c.String("dns"); dnsServer != "" {
+			config.Config.DNSServer = dnsServer
+			config.Config.Save()
+			fmt.Printf("已设置DNS服务器为: %s\n", dnsServer)
 		}
 
 		os.Setenv(config.EnvVerbose, c.String("verbose"))
